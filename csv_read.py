@@ -4,15 +4,80 @@
 Created on Tue Jun  1 19:11:59 2021
 
 @author: yuichiro
+
+Read csv files and store data as list 
+Visualize GNSS/RealSense data
+
 """
 
 import csv
+import matplotlib.pyplot as plt
+
+
+############## ファイルのパス ##############
+gnss_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gngga.csv"
+gnss_file2 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gnrmc.csv"
+rs_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090921_t265.csv"
+rs_file2 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091426_t265.csv"
+rs_file3 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091759_t265.csv"
+
+############## クラスを定義します ##############
+
+# RealSenseを読みこむ関数を定義します
+class RS_data:
+    def __init__(self):
+        self.camID = []
+        self.captureID = []
+        self.x = []
+        self.y = []
+        self.z = []
+        self.omg = []
+        self.phi = []
+        self.kpp = []
+        self.thread_time_vo = [] # スレッドの書き込み時刻
+    
+    def get_RS(self,RS_list):
+        
+        header = next(RS_list)
+        
+        camID = []
+        captureID = []
+        x = []
+        y = []
+        z = []
+        omg = []
+        phi = []
+        kpp = []
+        thread_time_vo = [] 
+        
+        for row in RS_list:
+            
+            camID.append([float(row[0])])
+            captureID.append([float(row[1])])
+            x.append([float(row[2])])
+            y.append([float(row[3])])
+            z.append([float(row[4])])
+            omg.append([row[5]])
+            phi.append([float(row[6])])
+            kpp.append([float(row[7])])
+            thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
+            thread_time_vo.append([thread_time_cal])
+            
+        self.camID = camID
+        self.captureID = captureID
+        self.x = x
+        self.y = y
+        self.z = z
+        self.omg =omg
+        self.phi =phi
+        self.kpp = kpp
+        self.thread_time_vo = thread_time_vo
 
 
 ############## GNSSのデータを読み込みます ##############
 
 #一つ目のGNSSファイルを開きます．$GNGGA
-csv_file = open(r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gngga.csv", "r", encoding="ms932", errors="", newline="" )
+csv_file = open(gnss_file1, "r", encoding="ms932", errors="", newline="" )
 
 #リスト形式
 gnss_1 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
@@ -49,7 +114,7 @@ for row in gnss_1:
     
 
 #二つ目のGNSSファイルを開きます．$GNRMC
-csv_file = open(r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gnrmc.csv", "r", encoding="ms932", errors="", newline="" )
+csv_file = open(gnss_file2, "r", encoding="ms932", errors="", newline="" )
 
 #リスト形式
 gnss_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
@@ -70,146 +135,58 @@ gnss_all = [time_list,latitude,latitude_direction,longitude,longitude_direction,
 ############## RealSenseのデータを読み込みます ##############
 
 # １つ目のRealSenseのデータを読み込みます
-csv_file = open(r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090921_t265.csv", "r", encoding="ms932", errors="", newline="" )
+csv_file = open(rs_file1, "r", encoding="ms932", errors="", newline="" )
 
 #リスト形式
 RS_1 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
 
-header = next(RS_1)
-
-camID_1 = []
-captureID_1 = []
-x_1 = []
-y_1 = []
-z_1 = []
-omg_1 = []
-phi_1 = []
-kpp_1 = []
-thread_time_vo1 = [] # スレッドの書き込み時刻
-
-for row in RS_1:
-    
-    camID_1.append([float(row[0])])
-    captureID_1.append([float(row[1])])
-    x_1.append([float(row[2])])
-    y_1.append([row[3]])
-    z_1.append([float(row[4])])
-    omg_1.append([row[5]])
-    phi_1.append([float(row[6])])
-    kpp_1.append([float(row[7])])
-    thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
-    thread_time_vo1.append([thread_time_cal])
+# データの読み込み
+rs1 = RS_data()
+rs1.get_RS(RS_1)
     
     
 # ２つ目のRealSenseのデータを読み込みます
-csv_file = open(r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091426_t265.csv", "r", encoding="ms932", errors="", newline="" )
+csv_file = open(rs_file2, "r", encoding="ms932", errors="", newline="" )
 
 #リスト形式
 RS_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
 
-header = next(RS_2)
-
-camID_2 = []
-captureID_2 = []
-x_2 = []
-y_2 = []
-z_2 = []
-omg_2 = []
-phi_2 = []
-kpp_2 = []
-thread_time_vo2 = [] # スレッドの書き込み時刻
-
-for row in RS_2:
-    
-    camID_2.append([float(row[0])])
-    captureID_2.append([float(row[1])])
-    x_2.append([float(row[2])])
-    y_2.append([row[3]])
-    z_2.append([float(row[4])])
-    omg_2.append([row[5]])
-    phi_2.append([float(row[6])])
-    kpp_2.append([float(row[7])])
-    thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
-    thread_time_vo2.append([thread_time_cal])
+# データの読み込み
+rs2 = RS_data()
+rs2.get_RS(RS_2)
 
 
 # ３つ目のRealSenseのデータを読み込みます
-csv_file = open(r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091759_t265.csv", "r", encoding="ms932", errors="", newline="" )
+csv_file = open(rs_file3, "r", encoding="ms932", errors="", newline="" )
 
 #リスト形式
 RS_3 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
 
-header = next(RS_3)
-
-camID_3 = []
-captureID_3 = []
-x_3 = []
-y_3 = []
-z_3 = []
-omg_3 = []
-phi_3 = []
-kpp_3 = []
-thread_time_vo3 = [] # スレッドの書き込み時刻
-
-for row in RS_3:
-    
-    camID_3.append([float(row[0])])
-    captureID_3.append([float(row[1])])
-    x_3.append([float(row[2])])
-    y_3.append([row[3]])
-    z_3.append([float(row[4])])
-    omg_3.append([row[5]])
-    phi_3.append([float(row[6])])
-    kpp_3.append([float(row[7])])
-    thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
-    thread_time_vo3.append([thread_time_cal])
+# データの読み込み
+rs3 = RS_data()
+rs3.get_RS(RS_3)
 
 
+# RealSenseのデータをドッキングします
 
-############## RealSenseのデータをドッキングします ##############
-
-camID = camID_1 + camID_2 + camID_3
-captureID = captureID_1 + captureID_2 + captureID_3
-x = x_1 + x_2 + x_3
-y = y_1 + y_2 + y_3
-z = z_1 + z_2 + z_3
-omg = omg_1 + omg_2 + omg_3
-phi = phi_1 + phi_2 + phi_3
-kpp = kpp_1 + kpp_2 + kpp_3
-thread_time_vo = thread_time_vo1 + thread_time_vo2 + thread_time_vo3
-
-
-# (if文の復習，ifでやる必要はない)
-# if thread_time_vo1[1] < thread_time_vo1[2]:
-#     if thread_time_vo1[2] < thread_time_vo1[3]:
-        
-#         camID = camID_1 + camID_2 + camID_3
-#         captureID = captureID_1 + captureID_2 + captureID_3
-#         x = x_1 + x_2 + x_3
-#         y = y_1 + y_2 + y_3
-#         z = z_1 + z_2 + z_3
-#         omg = omg_1 + omg_2 + omg_3
-#         phi = phi_1 + phi_2 + phi_3
-#         kpp = kpp_1 + kpp_2 + kpp_3
-#         thread_time_vo = thread_time_vo1 + thread_time_vo2 + thread_time_vo3
-        
-        
-#     else:
-        
-#         camID = camID_1 + camID_3 + camID_2
-#         captureID = captureID_1 + captureID_3 + captureID_2
-#         x = x_1 + x_3 + x_2
-#         y = y_1 + y_3 + y_2
-#         z = z_1 + z_3 + z_2
-#         omg = omg_1 + omg_3 + omg_2
-#         phi = phi_1 + phi_3 + phi_2
-#         kpp = kpp_1 + kpp_3 + kpp_2
-#         thread_time_vo = thread_time_vo1 + thread_time_vo3 + thread_time_vo2
-
-# elif thread_time_vo1[2] < thread_time_vo1[1]:
-#     if 
+camID = rs1.camID + rs2.camID + rs3.camID
+captureID = rs1.captureID + rs2.captureID + rs3.captureID
+x = rs1.x + rs2.x + rs3.x
+y = rs1.y + rs2.y + rs3.y
+z = rs1.z + rs2.z + rs3.z
+omg = rs1.omg + rs2.omg + rs3.omg
+phi = rs1.phi + rs2.phi + rs3.phi
+kpp = rs1.kpp + rs2.kpp + rs3.kpp
+thread_time_vo = rs1.thread_time_vo + rs2.thread_time_vo + rs3.thread_time_vo
 
 
+########## GNSSデータの可視化を行います ##########
+
+# plt.plot(longitude, latitude);
+
+plt.plot(rs1.x, rs1.y);
+plt.plot(rs2.x, rs2.y);
+plt.plot(rs3.x, rs3.y);
 
 
 
