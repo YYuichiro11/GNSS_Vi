@@ -158,39 +158,30 @@ gnss_all = [time_list,latitude,latitude_direction,longitude,longitude_direction,
 
 # １つ目のRealSenseのデータを読み込みます
 csv_file = open(rs_file1, "r", encoding="ms932", errors="", newline="" )
-
 #リスト形式
 RS_1 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-
 # データの読み込み
 rs1 = RS_data()
 rs1.get_RS(RS_1)
     
-    
 # ２つ目のRealSenseのデータを読み込みます
 csv_file = open(rs_file2, "r", encoding="ms932", errors="", newline="" )
-
 #リスト形式
 RS_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-
 # データの読み込み
 rs2 = RS_data()
 rs2.get_RS(RS_2)
 
-
 # ３つ目のRealSenseのデータを読み込みます
 csv_file = open(rs_file3, "r", encoding="ms932", errors="", newline="" )
-
 #リスト形式
 RS_3 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-
 # データの読み込み
 rs3 = RS_data()
 rs3.get_RS(RS_3)
 
 
 # RealSenseのデータをドッキングします
-
 camID = rs1.camID + rs2.camID + rs3.camID
 captureID = rs1.captureID + rs2.captureID + rs3.captureID
 x = rs1.x + rs2.x + rs3.x
@@ -203,7 +194,6 @@ thread_time_vo = rs1.thread_time_vo + rs2.thread_time_vo + rs3.thread_time_vo
 
 
 ########## GNSSデータの可視化を行います ##########
-
 plt.plot(lon_edit, lat_edit);
 
 plt.plot(rs1.x, rs1.y);
