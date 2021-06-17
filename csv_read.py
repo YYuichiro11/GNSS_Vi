@@ -12,7 +12,7 @@ Visualize GNSS/RealSense data
 
 import csv
 import matplotlib.pyplot as plt
-
+from pyproj import Transformer
 
 ############## ファイルのパス ##############
 gnss_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gngga.csv"
@@ -21,7 +21,19 @@ rs_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdo
 rs_file2 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091426_t265.csv"
 rs_file3 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091759_t265.csv"
 
-############## クラスを定義します ##############
+############## 関数，クラスを定義します ##############
+
+# GNSSの緯度経度を，度分表記（DMM）から度分秒(DMS)に変換します
+def dmm2dms(dmm):
+    s = dmm - int(dmm)
+    s = s*60
+    dms = int(dmm)*100 + s
+    return dms
+
+# GNSSの緯度経度を，WGS84系から直交座標系（数学系）へ変換
+def wgs2rtg(target, origin):
+    result = target-origin
+    return result
 
 # RealSenseを読みこむ関数を定義します
 class RS_data:
@@ -52,16 +64,16 @@ class RS_data:
         
         for row in RS_list:
             
-            camID.append([float(row[0])])
-            captureID.append([float(row[1])])
-            x.append([float(row[2])])
-            y.append([float(row[3])])
-            z.append([float(row[4])])
-            omg.append([row[5]])
-            phi.append([float(row[6])])
-            kpp.append([float(row[7])])
+            camID.append(float(row[0]))
+            captureID.append(float(row[1]))
+            x.append(float(row[2]))
+            y.append(float(row[3]))
+            z.append(float(row[4]))
+            omg.append(row[5])
+            phi.append(float(row[6]))
+            kpp.append(float(row[7]))
             thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
-            thread_time_vo.append([thread_time_cal])
+            thread_time_vo.append(thread_time_cal)
             
         self.camID = camID
         self.captureID = captureID
@@ -87,8 +99,10 @@ header = next(gnss_1)
 #データを要素ごとに格納します
 time_list = [] # UTC（協定世界時）での時刻．日本標準時は協定世界時より9時間進んでいる．hhmmss.ss
 latitude = [] # 緯度．dddmm.mmmm．60分で1度なので，分数を60で割ると度数になります．ddd.dddd度表記は(度数 + 分数/60) で得る．
+lat_edit = [] # 直交座標系に変換した値
 latitude_direction = [] # 	北緯か南緯か．
 longitude = [] # 経度.dddmm.mmmm
+lon_edit = [] # 直交座標系に変換した値
 longitude_direction = [] # 東経か西経か．
 quality_posi = [] # 位置特定品質。0 = 位置特定できない、1 = SPS（標準測位サービス）モード、2 = differenctial GPS（干渉測位方式）モード
 satellite = [] # 使用衛星数．
@@ -99,18 +113,26 @@ thread_time = [] # スレッドの書き込み時刻
 
 for row in gnss_1:
     
-    time_list.append([float(row[1])])
-    latitude.append([float(row[2])])
-    latitude_direction.append([row[3]])
-    longitude.append([float(row[4])])
-    longitude_direction.append([row[5]])
-    quality_posi.append([float(row[6])])
-    satellite.append([float(row[7])])
-    quality_horizontal.append([float(row[8])])
-    antenna_height.append([float(row[9])])
-    geoid.append([float(row[11])])
+    time_list.append(float(row[1]))
+    latitude_ori = float(row[2])
+    latitude_ori = dmm2dms(latitude_ori)
+    latitude.append(latitude_ori)
+    lat_e = wgs2rtg(latitude_ori, latitude[0])
+    lat_edit.append(lat_e)
+    latitude_direction.append(row[3])
+    longitude_ori = float(row[4])
+    longitude_ori = dmm2dms(longitude_ori)
+    longitude.append(longitude_ori)
+    lon_e = wgs2rtg(longitude_ori, longitude[0])
+    lon_edit.append(lon_e)
+    longitude_direction.append(row[5])
+    quality_posi.append(float(row[6]))
+    satellite.append(float(row[7]))
+    quality_horizontal.append(float(row[8]))
+    antenna_height.append(float(row[9]))
+    geoid.append(float(row[11]))
     thread_time_cal  = float(row[18])+float(row[19])/60+float(row[20])/3600
-    thread_time.append([thread_time_cal])
+    thread_time.append(thread_time_cal)
     
 
 #二つ目のGNSSファイルを開きます．$GNRMC
@@ -126,8 +148,8 @@ velocity = [] # 地表における移動の速度。000.0～999.9[knot]
 true_direction = [] # 地表における移動の真方位。000.0～359.9度
 for row in gnss_2:
     
-    velocity.append([float(row[7])])
-    true_direction.append([row[8]])
+    velocity.append(float(row[7]))
+    true_direction.append(row[8])
 
 gnss_all = [time_list,latitude,latitude_direction,longitude,longitude_direction,quality_posi,satellite,quality_horizontal,antenna_height,geoid,thread_time,velocity,true_direction]
 
@@ -182,11 +204,14 @@ thread_time_vo = rs1.thread_time_vo + rs2.thread_time_vo + rs3.thread_time_vo
 
 ########## GNSSデータの可視化を行います ##########
 
-# plt.plot(longitude, latitude);
+plt.plot(lon_edit, lat_edit);
 
 plt.plot(rs1.x, rs1.y);
 plt.plot(rs2.x, rs2.y);
 plt.plot(rs3.x, rs3.y);
+
+
+
 
 
 
