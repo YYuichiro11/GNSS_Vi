@@ -120,40 +120,20 @@ class RS_data:
         
         header = next(RS_list)
         
-        camID = []
-        captureID = []
-        x = []
-        y = []
-        z = []
-        omg = []
-        phi = []
-        kpp = []
-        thread_time_vo = [] 
-        
         for row in RS_list:
             
-            camID.append(float(row[0]))
-            captureID.append(float(row[1]))
-            x.append(float(row[2]))
-            y.append(float(row[3]))
-            z.append(float(row[4]))
-            omg.append(row[5])
-            phi.append(float(row[6]))
-            kpp.append(float(row[7]))
+            self.camID.append(float(row[0]))
+            self.captureID.append(float(row[1]))
+            self.x.append(float(row[2]))
+            self.y.append(float(row[3]))
+            self.z.append(float(row[4]))
+            self.omg.append(row[5])
+            self.phi.append(float(row[6]))
+            self.kpp.append(float(row[7]))
             thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
-            thread_time_vo.append(thread_time_cal)
+            self.thread_time_vo.append(thread_time_cal)
             
-        self.camID = camID
-        self.captureID = captureID
-        self.x = x
-        self.y = y
-        self.z = z
-        self.omg =omg
-        self.phi =phi
-        self.kpp = kpp
-        self.thread_time_vo = thread_time_vo
-
-
+            
 ############## GNSSのデータを読み込みます ##############
 
 #一つ目のGNSSファイルを開きます．$GNGGA
