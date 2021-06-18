@@ -7,13 +7,13 @@ Created on Tue Jun  1 19:11:59 2021
 
 Read csv files and store data as list 
 Visualize GNSS/RealSense data
+Convert GNSS data from wgs84 to rect jp9
 
 """
 
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
-from pyproj import Transformer
 
 ############## ファイルのパス ##############
 gnss_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524090750_gnss_gngga.csv"
@@ -22,8 +22,8 @@ rs_file1 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdo
 rs_file2 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091426_t265.csv"
 rs_file3 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091759_t265.csv"
 rs_file4 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091949_t265.csv"
-############## 関数，クラスを定義します ##############
 
+############## 関数，クラスを定義します ##############
 # GNSSの緯度経度を，度分表記（DMM）から度(DDD)に変換します
 def dmm2ddd(dmm):
     d = dmm*0.01
@@ -132,16 +132,12 @@ class RS_data:
             self.kpp.append(float(row[7]))
             thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
             self.thread_time_vo.append(thread_time_cal)
-            
-            
-############## GNSSのデータを読み込みます ##############
 
+############## GNSSのデータを読み込みます ##############
 #一つ目のGNSSファイルを開きます．$GNGGA
 csv_file = open(gnss_file1, "r", encoding="ms932", errors="", newline="" )
-
 #リスト形式
 gnss_1 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-
 header = next(gnss_1)
 
 #データを要素ごとに格納します
@@ -160,17 +156,14 @@ lat_edit = [] # 直交座標系に変換した値
 lon_edit = [] # 直交座標系に変換した値
 
 for row in gnss_1:
-    
     time_list.append(float(row[1]))
     latitude_ori = float(row[2])
-    latitude_ori = dmm2ddd(latitude_ori)
     latitude.append(latitude_ori)
-    
+        
     latitude_direction.append(row[3])
     longitude_ori = float(row[4])
-    longitude_ori = dmm2ddd(longitude_ori)
     longitude.append(longitude_ori)
-    
+        
     longitude_direction.append(row[5])
     quality_posi.append(float(row[6]))
     satellite.append(float(row[7]))
@@ -180,31 +173,26 @@ for row in gnss_1:
     thread_time_cal  = float(row[18])+float(row[19])/60+float(row[20])/3600
     thread_time.append(thread_time_cal)
     
+    latitude_ori = dmm2ddd(latitude_ori)
+    longitude_ori = dmm2ddd(longitude_ori)
     lat_e, lon_e = calc_xy(latitude_ori, longitude_ori, 36., 139+50./60)
     lat_edit.append(lat_e)
     lon_edit.append(lon_e)
     
 #二つ目のGNSSファイルを開きます．$GNRMC
 csv_file = open(gnss_file2, "r", encoding="ms932", errors="", newline="" )
-
 #リスト形式
 gnss_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-
 header = next(gnss_2)
-
 
 velocity = [] # 地表における移動の速度。000.0～999.9[knot]
 true_direction = [] # 地表における移動の真方位。000.0～359.9度
 for row in gnss_2:
-    
     velocity.append(float(row[7]))
     true_direction.append(row[8])
 
-gnss_all = [time_list,latitude,latitude_direction,longitude,longitude_direction,quality_posi,satellite,quality_horizontal,antenna_height,geoid,thread_time,velocity,true_direction]
-
 
 ############## RealSenseのデータを読み込みます ##############
-
 # １つ目のRealSenseのデータを読み込みます
 csv_file = open(rs_file1, "r", encoding="ms932", errors="", newline="" )
 #リスト形式
