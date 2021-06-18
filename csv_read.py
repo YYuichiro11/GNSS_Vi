@@ -33,7 +33,9 @@ def dmm2ddd(dmm):
 
 # GNSSの緯度経度を，平面直角座標系へ変換します
 def calc_xy(phi_deg, lambda_deg, phi0_deg, lambda0_deg):
-    """ 緯度経度を平面直角座標に変換する
+    """
+    https://qiita.com/sw1227/items/e7a590994ad7dcd0e8ab
+    緯度経度を平面直角座標に変換する
     - input:
         (phi_deg, lambda_deg): 変換したい緯度・経度[度]（分・秒でなく小数であることに注意）
         (phi0_deg, lambda0_deg): 平面直角座標系原点の緯度・経度[度]（分・秒でなく小数であることに注意）
