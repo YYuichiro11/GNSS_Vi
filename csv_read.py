@@ -33,9 +33,7 @@ def dmm2ddd(dmm):
 
 # GNSSの緯度経度を，平面直角座標系へ変換します
 def calc_xy(phi_deg, lambda_deg, phi0_deg, lambda0_deg):
-    """
-    https://qiita.com/sw1227/items/e7a590994ad7dcd0e8ab
-    緯度経度を平面直角座標に変換する
+    """ 緯度経度を平面直角座標に変換する
     - input:
         (phi_deg, lambda_deg): 変換したい緯度・経度[度]（分・秒でなく小数であることに注意）
         (phi0_deg, lambda0_deg): 平面直角座標系原点の緯度・経度[度]（分・秒でなく小数であることに注意）
@@ -105,7 +103,98 @@ def calc_xy(phi_deg, lambda_deg, phi0_deg, lambda0_deg):
     return x, y # [m]
 
 
-# RealSenseを読みこむ関数を定義します
+# Real SenseのデータとGNSSのデータの時刻合わせをします
+def RS_GNSSmatch(RS, gnss):
+    gnss_time = gnss.thread_time
+    rs_time = RS.thread_time_vo
+    
+    # gnssのデータを基軸に，rsとgnssの時刻合わせをします
+    for gt in gnss_time:
+        count = 0
+        
+        # gnssの時間がrealsenseの時間に近づくまで処理をスキップするためのif文
+        if gt - rs_time[0] > 0:    
+            
+            # Real Senseの時間を合わせます
+            for rt in rs_time:
+                cal = abs(gt - rt)  # gnssとrealsenseの時刻の差を計算して，差の絶対値が最も小さいものが同時刻として，位置合わせを行う
+                
+                if count == 0:
+                    minimum = cal
+                    
+                elif minimum > cal:
+                    minimum = cal
+                
+                else:   # ここでgnssとrealsenseの時刻が同期されているから，この時のcountを用いてデータ合わせを行う
+                    same_time = count
+                    # ここに位置とかのすり合わせ処理を組み込む
+                    # この関数において，realsenseのデータが最後まで読み込まれたにもかかわらず，時刻同期ができないときに処理を終わらせるようにする
+                    # 次のrealsenseのデータを読み込むための，エラー回避用の処理を組む
+                    
+                    break
+                
+                count += 1
+            
+
+            
+        
+    
+    
+
+# GNSSデータを読み込むクラスを定義します
+class GNSS_data:
+    def __init__(self):
+        #データを要素ごとに格納します
+        self.time_list = [] # UTC（協定世界時）での時刻．日本標準時は協定世界時より9時間進んでいる．hhmmss.ss
+        self.latitude = [] # 緯度．dddmm.mmmm．60分で1度なので，分数を60で割ると度数になります．ddd.dddd度表記は(度数 + 分数/60) で得る．
+        self.latitude_direction = [] # 	北緯か南緯か．
+        self.longitude = [] # 経度.dddmm.mmmm
+        self.longitude_direction = [] # 東経か西経か．
+        self.quality_posi = [] # 位置特定品質。0 = 位置特定できない、1 = SPS（標準測位サービス）モード、2 = differenctial GPS（干渉測位方式）モード
+        self.satellite = [] # 使用衛星数．
+        self.quality_horizontal = [] # 水平精度低下率
+        self.antenna_height = [] # アンテナの海抜高さ
+        self.geoid = []  #ジオイドの高さ
+        self.thread_time = [] # スレッドの書き込み時刻
+        self.lat_edit = [] # 直交座標系に変換した値
+        self.lon_edit = [] # 直交座標系に変換した値
+        self.velocity = [] # 地表における移動の速度。000.0～999.9[knot]
+        self.true_direction = [] # 地表における移動の真方位。000.0～359.9度
+    
+    def get_GNGGA(self,GNGGA_list):
+        header = next(GNGGA_list)
+        for row in GNGGA_list:
+            self.time_list.append(float(row[1]))
+            latitude_ori = float(row[2])
+            self.latitude.append(latitude_ori)
+            
+            self.latitude_direction.append(row[3])
+            longitude_ori = float(row[4])
+            self.longitude.append(longitude_ori)
+        
+            self.longitude_direction.append(row[5])
+            self.quality_posi.append(float(row[6]))
+            self.satellite.append(float(row[7]))
+            self.quality_horizontal.append(float(row[8]))
+            self.antenna_height.append(float(row[9]))
+            self.geoid.append(float(row[11]))
+            thread_time_cal  = float(row[18])+float(row[19])/60+float(row[20])/3600
+            self.thread_time.append(thread_time_cal)
+            
+            latitude_ori = dmm2ddd(latitude_ori)
+            longitude_ori = dmm2ddd(longitude_ori)
+            lat_e, lon_e = calc_xy(latitude_ori, longitude_ori, 36., 139+50./60)
+            self.lat_edit.append(lat_e)
+            self.lon_edit.append(lon_e)
+    
+    def get_GNRMC(self,GNRMC_list):
+        header = next(GNRMC_list)
+        for row in GNRMC_list:
+            self.velocity.append(float(row[7]))
+            self.true_direction.append(row[8])
+            
+
+# RealSenseを読みこむクラスを定義します
 class RS_data:
     def __init__(self):
         self.camID = []
@@ -119,11 +208,8 @@ class RS_data:
         self.thread_time_vo = [] # スレッドの書き込み時刻
     
     def get_RS(self,RS_list):
-        
         header = next(RS_list)
-        
         for row in RS_list:
-            
             self.camID.append(float(row[0]))
             self.captureID.append(float(row[1]))
             self.x.append(float(row[2]))
@@ -135,64 +221,21 @@ class RS_data:
             thread_time_cal  = float(row[11])+float(row[12])/60+float(row[13])/3600
             self.thread_time_vo.append(thread_time_cal)
 
+
 ############## GNSSのデータを読み込みます ##############
 #一つ目のGNSSファイルを開きます．$GNGGA
 csv_file = open(gnss_file1, "r", encoding="ms932", errors="", newline="" )
 #リスト形式
 gnss_1 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-header = next(gnss_1)
+# データの読み込み
+gnss = GNSS_data()
+gnss.get_GNGGA(gnss_1)
 
-#データを要素ごとに格納します
-time_list = [] # UTC（協定世界時）での時刻．日本標準時は協定世界時より9時間進んでいる．hhmmss.ss
-latitude = [] # 緯度．dddmm.mmmm．60分で1度なので，分数を60で割ると度数になります．ddd.dddd度表記は(度数 + 分数/60) で得る．
-latitude_direction = [] # 	北緯か南緯か．
-longitude = [] # 経度.dddmm.mmmm
-longitude_direction = [] # 東経か西経か．
-quality_posi = [] # 位置特定品質。0 = 位置特定できない、1 = SPS（標準測位サービス）モード、2 = differenctial GPS（干渉測位方式）モード
-satellite = [] # 使用衛星数．
-quality_horizontal = [] # 水平精度低下率
-antenna_height = [] # アンテナの海抜高さ
-geoid = []  #ジオイドの高さ
-thread_time = [] # スレッドの書き込み時刻
-lat_edit = [] # 直交座標系に変換した値
-lon_edit = [] # 直交座標系に変換した値
-
-for row in gnss_1:
-    time_list.append(float(row[1]))
-    latitude_ori = float(row[2])
-    latitude.append(latitude_ori)
-        
-    latitude_direction.append(row[3])
-    longitude_ori = float(row[4])
-    longitude.append(longitude_ori)
-        
-    longitude_direction.append(row[5])
-    quality_posi.append(float(row[6]))
-    satellite.append(float(row[7]))
-    quality_horizontal.append(float(row[8]))
-    antenna_height.append(float(row[9]))
-    geoid.append(float(row[11]))
-    thread_time_cal  = float(row[18])+float(row[19])/60+float(row[20])/3600
-    thread_time.append(thread_time_cal)
-    
-    latitude_ori = dmm2ddd(latitude_ori)
-    longitude_ori = dmm2ddd(longitude_ori)
-    lat_e, lon_e = calc_xy(latitude_ori, longitude_ori, 36., 139+50./60)
-    lat_edit.append(lat_e)
-    lon_edit.append(lon_e)
-    
 #二つ目のGNSSファイルを開きます．$GNRMC
 csv_file = open(gnss_file2, "r", encoding="ms932", errors="", newline="" )
 #リスト形式
 gnss_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
-header = next(gnss_2)
-
-velocity = [] # 地表における移動の速度。000.0～999.9[knot]
-true_direction = [] # 地表における移動の真方位。000.0～359.9度
-for row in gnss_2:
-    velocity.append(float(row[7]))
-    true_direction.append(row[8])
-
+gnss.get_GNRMC(gnss_2)
 
 ############## RealSenseのデータを読み込みます ##############
 # １つ目のRealSenseのデータを読み込みます
@@ -242,10 +285,10 @@ rs4.get_RS(RS_4)
 
 ########## GNSSデータの可視化を行います ##########
 
-# plt.plot(lon_edit, lat_edit);
+# plt.plot(gnss.lon_edit, gnss.lat_edit);
 
 plt.plot(rs1.x, rs1.y);
-# plt.plot(rs2.x, rs2.y);
+plt.plot(rs2.x, rs2.y);
 # plt.plot(rs3.x, rs3.y);
 # plt.plot(rs4.x, rs4.y);
 
