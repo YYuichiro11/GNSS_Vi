@@ -24,14 +24,18 @@ rs_file3 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdo
 rs_file4 = r"C:\Users\jamis\Desktop\research\GNSS_visual\testdata_GNSS_VisualOdometry\dstr_20210524091949_t265.csv"
 
 ############## 関数，クラスを定義します ##############
-# GNSSの緯度経度を，度分表記（DMM）から度(DDD)に変換します
+""" 
+GNSSの緯度経度を，度分表記（DMM）から度(DDD)に変換します 
+"""
 def dmm2ddd(dmm):
     d = dmm*0.01
     m = (d - int(d))*100
     ddd = int(d) + m/60
     return ddd
 
-# GNSSの緯度経度を，平面直角座標系へ変換します
+""" 
+GNSSの緯度経度を，平面直角座標系へ変換します 
+"""
 def calc_xy(phi_deg, lambda_deg, phi0_deg, lambda0_deg):
     """ 緯度経度を平面直角座標に変換する
     - input:
@@ -103,13 +107,90 @@ def calc_xy(phi_deg, lambda_deg, phi0_deg, lambda0_deg):
     return x, y # [m]
 
 
-# Real SenseのデータとGNSSのデータの時刻合わせをします
-# def RS_GNSSmatch(RS, gnss):
+""" 
+Real SenseのデータとGNSSのデータを使って，初期位置合わせを行います 
+"""
+def RS_GNSSposi(RS, gnss):
+    rs_time = RS.thread_time_vo
+    gnss_time = gnss.thread_time
+        
+    # gnssの時間とrealsenseの時間合わせを行います
+    count = 0
+    while gnss_time[count] - rs_time[0] < 0:
+        count += 1
+    else:
+        if abs(gnss_time[count] - rs_time[0]) < abs(gnss_time[count-1] - rs_time[0]):
+            ori_x = gnss.lon_edit[count]
+            ori_y = gnss.lat_edit[count]
+            
+            # ここまでで時刻合わせが完了したから，gnssの初期値をrealsenseのデータに足し合わせる（並進）
+            k = 0
+            for rst in rs_time:
+                RS.x[k] = RS.x[k] + ori_x
+                RS.y[k] = RS.y[k] + ori_y
+                k += 1
+            
+        else:
+            ori_x = gnss.lon_edit[count-1]
+            ori_y = gnss.lat_edit[count-1]
+        
+            # ここまでで時刻合わせが完了したから，gnssの初期値をrealsenseのデータに足し合わせる（並進）
+            k = 0
+            for rst in rs_time:
+                RS.x[k] = RS.x[k] + ori_x
+                RS.y[k] = RS.y[k] + ori_y
+                k += 1
     
+
+"""
+Real SenseのデータとGNSSのデータを使って，realsenseの位置データに回転をかけて，正しい方向に直します
+原点と二点目のgnssデータを使ってベクトルを求めて，真値とrealsenseのデータのすり合わせを行う二次元の回転行列を求めます 
+"""
+
+
+"""
+Real SenseのデータとGNSSのデータの時刻合わせをします
+"""
+def RS_GNSSmatch(RS, gnss):
+    gnss_time = gnss.thread_time
+    rs_time = RS.thread_time_vo
+    
+    # gnssのデータを基軸に，rsとgnssの時刻合わせをします
+    for gt in gnss_time:
+        count = 0
+        
+        # gnssの時間がrealsenseの時間に近づくまで処理をスキップするためのif文
+        if gt - rs_time[0] > 0:    
+            
+            # Real Senseの時間を合わせます
+            for rt in rs_time:
+                cal = abs(gt - rt)  # gnssとrealsenseの時刻の差を計算して，差の絶対値が最も小さいものが同時刻として，位置合わせを行う
+                
+                if count == 0:
+                    minimum = cal
+                    
+                elif minimum > cal:
+                    minimum = cal
+                
+                else:   # ここでgnssとrealsenseの時刻が同期されているから，この時のcountを用いてデータ合わせを行う
+                    same_time = count
+                    # ここに位置とかのすり合わせ処理を組み込む
+                    # この関数において，realsenseのデータが最後まで読み込まれたにもかかわらず，時刻同期ができないときに処理を終わらせるようにする
+                    # 次のrealsenseのデータを読み込むための，エラー回避用の処理を組む
+                    
+                    break
+                
+                count += 1
+            
+
+            
+        
     
     
 
-# GNSSデータを読み込むクラスを定義します
+"""
+ GNSSデータを読み込むクラスを定義します
+"""
 class GNSS_data:
     def __init__(self):
         #データを要素ごとに格納します
@@ -162,7 +243,9 @@ class GNSS_data:
             self.true_direction.append(row[8])
             
 
-# RealSenseを読みこむクラスを定義します
+""" 
+RealSenseを読みこむクラスを定義します
+"""
 class RS_data:
     def __init__(self):
         self.camID = []
@@ -176,11 +259,8 @@ class RS_data:
         self.thread_time_vo = [] # スレッドの書き込み時刻
     
     def get_RS(self,RS_list):
-        
         header = next(RS_list)
-        
         for row in RS_list:
-            
             self.camID.append(float(row[0]))
             self.captureID.append(float(row[1]))
             self.x.append(float(row[2]))
@@ -193,7 +273,7 @@ class RS_data:
             self.thread_time_vo.append(thread_time_cal)
 
 
-############## GNSSのデータを読み込みます ##############
+"""############## GNSSのデータを読み込みます ##############"""
 #一つ目のGNSSファイルを開きます．$GNGGA
 csv_file = open(gnss_file1, "r", encoding="ms932", errors="", newline="" )
 #リスト形式
@@ -208,7 +288,7 @@ csv_file = open(gnss_file2, "r", encoding="ms932", errors="", newline="" )
 gnss_2 = csv.reader(csv_file, delimiter=",", doublequote=True, lineterminator="\r\n", quotechar='"', skipinitialspace=True)
 gnss.get_GNRMC(gnss_2)
 
-############## RealSenseのデータを読み込みます ##############
+"""############## RealSenseのデータを読み込みます ##############"""
 # １つ目のRealSenseのデータを読み込みます
 csv_file = open(rs_file1, "r", encoding="ms932", errors="", newline="" )
 #リスト形式
@@ -242,32 +322,26 @@ rs4 = RS_data()
 rs4.get_RS(RS_4)
 
 
-# RealSenseのデータをドッキングします
-# camID = rs1.camID + rs2.camID + rs3.camID + rs4.camID
-# captureID = rs1.captureID + rs2.captureID + rs3.captureID + rs4.captureID
-# x = rs1.x + rs2.x + rs3.x +rs4.x
-# y = rs1.y + rs2.y + rs3.y + rs4.y
-# z = rs1.z + rs2.z + rs3.z + rs4.z
-# omg = rs1.omg + rs2.omg + rs3.omg + rs4.omg 
-# phi = rs1.phi + rs2.phi + rs3.phi + rs4.phi
-# kpp = rs1.kpp + rs2.kpp + rs3.kpp + rs4.kpp
-# thread_time_vo = rs1.thread_time_vo + rs2.thread_time_vo + rs3.thread_time_vo + rs4.thread_time_vo
-
-
-########## GNSSデータの可視化を行います ##########
+"""########## GNSSデータの可視化を行います ##########"""
 
 plt.plot(gnss.lon_edit, gnss.lat_edit);
+# plt.plot(rs1.x, rs1.y);
+# plt.plot(rs2.x, rs2.y);
+# plt.plot(rs3.x, rs3.y);
+# plt.plot(rs4.x, rs4.y);
 
+# 初期位置合わせを行います
+RS_GNSSposi(rs1, gnss)
+
+plt.plot(gnss.lon_edit, gnss.lat_edit);
 plt.plot(rs1.x, rs1.y);
+
+RS_GNSSposi(rs2, gnss)
 plt.plot(rs2.x, rs2.y);
+
+RS_GNSSposi(rs3, gnss)
 plt.plot(rs3.x, rs3.y);
+
+RS_GNSSposi(rs4, gnss)
 plt.plot(rs4.x, rs4.y);
-
-
-
-
-
-
-
-
 
